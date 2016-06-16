@@ -82,6 +82,8 @@ module.exports = {
 
     output: {
         filename: PRODUCTION ? '[name]/bundle.min.js' : '[name]/bundle.js',
+        library: 'ilp-plugin-bigchaindb',
+        libraryTarget: 'umd',
         path: PRODUCTION ? PATHS.DIST : PATHS.BUILD,
     },
 

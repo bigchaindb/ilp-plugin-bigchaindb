@@ -3,7 +3,7 @@
     'plugins': [
         'transform-object-assign',
         [ 'transform-runtime', {
-            'polyfill': true,
+            'polyfill': false,
             'regenerator': true
         } ]
     ],
