@@ -1,0 +1,58 @@
+{
+  "name": "ilp-plugin-bigchaindb",
+  "version": "0.0.1",
+  "description": "ILP Ledger plugin for BigchainDB",
+  "homepage": "https://www.bigchain.io/",
+  "bugs": "https://github.com/bigchain/js-ilp-plugin-bigchaindb/issues",
+  "license": "Apache-2.0",
+  "author": "BigchainDB Team <info@bigchaindb.com>",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:bigchaindb/js-ilp-plugin-bigchaindb.git"
+  },
+  "keywords": [
+    "bigchaindb",
+    "blockchain",
+    "interledger",
+    "plugin",
+    "connector",
+    "ilp"
+  ],
+  "main": "src/lib/bigchaindb_ledger_plugin.js",
+  "scripts": {
+    "lint": "eslint ./",
+    "build": "rimraf ./build && webpack",
+    "build:dist": "rimraf ./dist && NODE_ENV=production webpack -p",
+    "clean": "rimraf ./build ./dist",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm run build"
+  },
+  "dependencies": {
+    "co": "^4.6.0",
+    "co-request": "^1.0.0",
+    "core-js": "^2.4.0",
+    "es6-promise": "^3.2.1",
+    "eventemitter2": "^1.0.3",
+    "reconnect-core": "^1.2.0",
+    "simple-websocket": "^4.1.0",
+    "whatwg-fetch": "^1.0.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.8.0",
+    "babel-eslint": "^6.0.4",
+    "babel-loader": "^6.0.1",
+    "babel-plugin-transform-object-assign": "^6.8.0",
+    "babel-plugin-transform-runtime": "^6.8.0",
+    "babel-preset-es2015": "^6.1.2",
+    "babel-runtime": "^6.9.2",
+    "eslint": "^2.10.2",
+    "eslint-config-ascribe": "^1.0.1",
+    "eslint-plugin-import": "^1.8.0",
+    "eslint-plugin-jsx-a11y": "^1.2.2",
+    "exports-loader": "^0.6.3",
+    "imports-loader": "^0.6.5",
+    "rimraf": "^2.5.2",
+    "webpack": "^2.1.0-beta.7",
+    "webpack-combine-loaders": "^2.0.0"
+  }
+}
