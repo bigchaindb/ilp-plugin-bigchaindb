@@ -1,8 +1,9 @@
 import co from 'co';
-
 import reconnectCore from 'reconnect-core';
 import EventEmitter2 from 'eventemitter2';
 import SimpleWebsocket from 'simple-websocket';
+
+import request from '../util/request';
 
 class BigchainDBLedgerPlugin extends EventEmitter2 {
 
@@ -22,14 +23,14 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     * _connect() {
-        const accountUri = this.credentials.account.uri;
+        const wsUri = this.credentials.account.uri.ws;
 
         if (this.connection) {
             console.warn('already connected, ignoring connection request');
             return Promise.resolve(null);
         }
 
-        const streamUri = `${accountUri}/changes`;
+        const streamUri = `${wsUri}/changes`;
         console.log(`subscribing to ${streamUri}`);
 
         const reconnect = reconnectCore(() => new SimpleWebsocket(streamUri));
@@ -44,8 +45,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                     co.wrap(this._handleNotification)
                         .call(this, notification)
                         .catch((err) => {
-                            const errString = (err && err.stack) ? err.stack : err;
-                            console.warn(`failure while processing notification: ${errString}`);
+                            console.error(err);
                         });
                 });
                 ws.on('close', () => {
@@ -92,14 +92,10 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     * _getBalance() {
-        const creds = this.credentials;
+        const account = this.credentials.account;
         let res;
         try {
-            res = yield request('assets_for_account', {
-                urlTemplateSpec: {
-                    accountId: creds.account.id
-                }
-            });
+            res = yield request(`${account.uri.api}accounts/${account.id}/assets/`);
         } catch (e) {
             throw new Error('Unable to determine current balance');
         }
@@ -123,13 +119,20 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
     * _send(transfer) {
         let res;
+        const account = this.credentials.account;
+        const {
+            txid,
+            cid
+        } = transfer.asset;
         try {
-            res = yield request('assets_escrow', {
+            res = yield request(`${account.uri.api}assets/${txid}/${cid}/escrow/`, {
                 method: 'POST',
-                jsonBody: transfer.payloadToPost,
-                urlTemplateSpec: {
-                    assetId: transfer.asset.id,
-                    cid: transfer.asset.cid
+                jsonBody: {
+                    source: {
+                        vk: account.id,
+                        sk: account.key
+                    },
+                    to: transfer.account
                 }
             });
         } catch (e) {
@@ -138,7 +141,32 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         return res;
     }
 
-    fulfillCondition() {
+    fulfillCondition(transferID, conditionFulfillment) {
+        return co.wrap(this._fulfillCondition).call(this, transferID, conditionFulfillment)
+    }
+
+    * _fulfillCondition(transfer) {
+        let res;
+        const account = this.credentials.account;
+        const {
+            txid,
+            cid
+        } = transfer.asset;
+        try {
+            res = yield request(`${account.uri.api}assets/${txid}/${cid}/escrow/fulfill/`, {
+                method: 'POST',
+                jsonBody: {
+                    source: {
+                        vk: account.id,
+                        sk: account.key
+                    },
+                    to: transfer.account
+                }
+            });
+        } catch (e) {
+            throw new Error('Unable to escrow transfer');
+        }
+        return res;
     }
 
     replyToTransfer() {

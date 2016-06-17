@@ -33,6 +33,7 @@
     "core-js": "^2.4.0",
     "es6-promise": "^3.2.1",
     "eventemitter2": "^1.0.3",
+    "js-utility-belt": "^1.2.2",
     "reconnect-core": "^1.2.0",
     "simple-websocket": "^4.1.0",
     "whatwg-fetch": "^1.0.0"
