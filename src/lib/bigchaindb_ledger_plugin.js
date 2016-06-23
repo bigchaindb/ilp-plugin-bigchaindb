@@ -125,7 +125,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             cid
         } = transfer.asset;
         try {
-            res = yield request(`${account.uri.api}assets/${txid}/${cid}/escrow/`, {
+            res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/`, {
                 method: 'POST',
                 jsonBody: {
                     source: {
@@ -153,7 +153,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             cid
         } = transfer.asset;
         try {
-            res = yield request(`${account.uri.api}assets/${txid}/${cid}/escrow/fulfill/`, {
+            res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/fulfill/`, {
                 method: 'POST',
                 jsonBody: {
                     source: {
