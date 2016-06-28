@@ -187,7 +187,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         return co.wrap(this._fulfillCondition).call(this, transferID, conditionFulfillment);
     }
 
-    * _fulfillCondition(transfer) {
+    * _fulfillCondition(transfer, conditionFulfillment) {
         let res;
 
         const {
@@ -207,7 +207,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                         vk: account.id,
                         sk: account.key
                     },
-                    to: transfer.account
+                    to: transfer.account,
+                    conditionFulfillment: conditionFulfillment
                 }
             });
         } catch (e) {
