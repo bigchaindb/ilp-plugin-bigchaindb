@@ -10,7 +10,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     constructor(options) {
         super();
 
-        this.id = null;
+        this.id = options.ledgerId;
         this.credentials = options.auth;
         this.config = options.config;
 
@@ -36,7 +36,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         const reconnect = reconnectCore(() => new SimpleWebsocket(streamUri));
 
         return new Promise((resolve, reject) => {
-            this.connection = reconnect({ immediate: true }, (ws) => {
+            this.connection = reconnect({immediate: true}, (ws) => {
                 ws.on('open', () => {
                     console.log(`ws connected to ${streamUri}`);
                 });
@@ -92,13 +92,18 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     * _getBalance() {
-        const account = this.credentials.account;
+        const {
+            account
+        } = this.credentials;
+
         let res;
+
         try {
             res = yield request(`${account.uri.api}accounts/${account.id}/assets/`);
         } catch (e) {
             throw new Error('Unable to determine current balance');
         }
+
         if (res && res.assets && res.assets.bigchain && res.assets.bigchain.length) {
             return res.assets.bigchain.length;
         } else {
@@ -108,10 +113,34 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
 
     getConnectors() {
+        return co.wrap(this._getConnectors).call(this);
+    }
+
+    * _getConnectors() {
+        if (this.id === undefined) {
+            throw new Error('Must be connected before getConnectors can be called');
+        }
+
+        const {
+            account
+        } = this.credentials;
+
+        let res;
+        try {
+            res = yield request(`${account.uri.api}/api/ledgers/${this.id}/connectors/`, {
+                method: 'GET',
+                query: {
+                    app: 'interledger'
+                }
+            });
+        } catch (e) {
+            throw new Error(`Unable to get connectors`);
+        }
+        return res;
     }
 
     /*
-    Initiates a ledger-local transfer.
+     Initiates a ledger-local transfer.
      */
     send(transfer) {
         return co.wrap(this._send).call(this, transfer);
@@ -119,11 +148,16 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
     * _send(transfer) {
         let res;
-        const account = this.credentials.account;
+
+        const {
+            account
+        } = this.credentials;
+
         const {
             txid,
             cid
         } = transfer.asset;
+
         try {
             res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/`, {
                 method: 'POST',
@@ -132,7 +166,15 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                         vk: account.id,
                         sk: account.key
                     },
-                    to: transfer.account
+                    to: transfer.account,
+                    data: {
+                        ilp_header: {
+                            account: transfer.destinationAccount.vk,
+                            ledger: transfer.destinationAccount.ledger.id
+                        }
+                    },
+                    executionCondition: transfer.executionCondition,
+                    expiresAt: transfer.expiresAt
                 }
             });
         } catch (e) {
@@ -142,16 +184,21 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     fulfillCondition(transferID, conditionFulfillment) {
-        return co.wrap(this._fulfillCondition).call(this, transferID, conditionFulfillment)
+        return co.wrap(this._fulfillCondition).call(this, transferID, conditionFulfillment);
     }
 
     * _fulfillCondition(transfer) {
         let res;
-        const account = this.credentials.account;
+
+        const {
+            account
+        } = this.credentials;
+
         const {
             txid,
             cid
         } = transfer.asset;
+
         try {
             res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/fulfill/`, {
                 method: 'POST',
