@@ -167,11 +167,9 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                         sk: account.key
                     },
                     to: transfer.account,
-                    data: {
-                        ilp_header: {
-                            account: transfer.destinationAccount.vk,
-                            ledger: transfer.destinationAccount.ledger.id
-                        }
+                    ilpHeader: {
+                        account: transfer.destinationAccount.vk,
+                        ledger: transfer.destinationAccount.ledger.id
                     },
                     executionCondition: transfer.executionCondition,
                     expiresAt: transfer.expiresAt
