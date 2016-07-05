@@ -6,6 +6,10 @@
   "bugs": "https://github.com/bigchain/js-ilp-plugin-bigchaindb/issues",
   "license": "Apache-2.0",
   "author": "BigchainDB Team <info@bigchaindb.com>",
+  "files": [
+    "*.md",
+    "bundle"
+  ],
   "repository": {
     "type": "git",
     "url": "git@github.com:bigchaindb/js-ilp-plugin-bigchaindb.git"
@@ -18,14 +22,17 @@
     "connector",
     "ilp"
   ],
-  "main": "src/lib/bigchaindb_ledger_plugin.js",
+  "main": "bundle/bundle.min.js",
+  "directories": {
+    "bundle": "bundle/"
+  },
   "scripts": {
     "lint": "eslint ./",
     "build": "rimraf ./build && webpack",
-    "build:dist": "rimraf ./dist && NODE_ENV=production webpack -p",
-    "clean": "rimraf ./build ./dist",
+    "build:dist": "rimraf ./bundle && NODE_ENV=production webpack -p",
+    "clean": "rimraf ./build ./bundle",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build:dist"
   },
   "dependencies": {
     "co": "^4.6.0",

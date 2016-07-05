@@ -13,7 +13,7 @@ const PATHS = {
     ILP_PLUGIN: path.resolve(__dirname, 'src/lib/bigchaindb_ledger_plugin.js'),
 
     BUILD: path.resolve(__dirname, 'build'),
-    DIST: path.resolve(__dirname, 'dist'),
+    BUNDLE: path.resolve(__dirname, 'bundle'),
     NODE_MODULES: path.resolve(__dirname, 'node_modules'),
 };
 
@@ -42,7 +42,8 @@ const PROD_PLUGINS = [
         },
         output: {
             comments: false
-        }
+        },
+        sourceMap: true,
     }),
     new webpack.LoaderOptionsPlugin({
         debug: false,
@@ -81,10 +82,10 @@ module.exports = {
     entry: PATHS.ILP_PLUGIN,
 
     output: {
-        filename: PRODUCTION ? '[name]/bundle.min.js' : '[name]/bundle.js',
+        filename: PRODUCTION ? 'bundle.min.js' : 'bundle.js',
         library: 'ilp-plugin-bigchaindb',
         libraryTarget: 'umd',
-        path: PRODUCTION ? PATHS.DIST : PATHS.BUILD,
+        path: PRODUCTION ? PATHS.BUNDLE : PATHS.BUILD,
     },
 
     debug: !PRODUCTION,
