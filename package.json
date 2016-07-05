@@ -1,6 +1,6 @@
 {
   "name": "ilp-plugin-bigchaindb",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "ILP Ledger plugin for BigchainDB",
   "homepage": "https://www.bigchain.io/",
   "bugs": "https://github.com/bigchain/js-ilp-plugin-bigchaindb/issues",
