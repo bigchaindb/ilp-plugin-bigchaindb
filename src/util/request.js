@@ -1,4 +1,4 @@
-import { request as baseRequest, sanitize } from 'js-utility-belt/es6';
+import { request as baseRequest, sanitize } from 'js-utility-belt/lib/request';
 
 const DEFAULT_REQUEST_CONFIG = {
     credentials: 'include',

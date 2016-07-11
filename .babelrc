@@ -1,11 +1,27 @@
 {
-    'presets': ['es2015'],
+    'presets': ['es2015-no-commonjs'],
     'plugins': [
+        'transform-inline-environment-variables',
         'transform-object-assign',
-        [ 'transform-runtime', {
+        'transform-object-rest-spread',
+        ['transform-runtime', {
             'polyfill': false,
             'regenerator': true
-        } ]
+        }]
     ],
-    'sourceMaps': true
+    'sourceMaps': true,
+
+    'env': {
+        'bundle': {
+            'plugins': [
+                ['transform-runtime', {
+                    'polyfill': true,
+                    'regenerator': true
+                }]
+            ]
+        },
+        'cjs': {
+            'plugins': ['transform-es2015-modules-commonjs']
+        }
+    }
 }
