@@ -134,6 +134,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                 }
             });
         } catch (e) {
+            console.error(e);
             throw new Error(`Unable to get connectors`);
         }
         return res;
