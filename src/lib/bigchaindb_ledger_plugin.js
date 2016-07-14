@@ -99,13 +99,19 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         let res;
 
         try {
-            res = yield request(`${account.uri.api}accounts/${account.id}/assets/`);
+            res = yield request(`${account.uri.api}/api/accounts/${account.id}/assets/`, {
+                method: 'GET',
+                query: {
+                    app: 'interledger'
+                }
+            });
         } catch (e) {
+            console.error(e);
             throw new Error('Unable to determine current balance');
         }
 
-        if (res && res.assets && res.assets.bigchain && res.assets.bigchain.length) {
-            return res.assets.bigchain.length;
+        if (res && res.assets && res.assets.bigchain && Array.isArray(res.assets.bigchain)) {
+            return res.assets.bigchain;
         } else {
             throw new Error('Unable to determine current balance');
         }
