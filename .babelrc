@@ -1,7 +1,6 @@
 {
     'presets': ['es2015-no-commonjs'],
     'plugins': [
-        'add-module-exports',
         'transform-object-assign',
         'transform-object-rest-spread',
         ['transform-runtime', {
@@ -21,7 +20,10 @@
             ]
         },
         'cjs': {
-            'plugins': ['transform-es2015-modules-commonjs']
+            'plugins': [
+                'add-module-exports',
+                'transform-es2015-modules-commonjs',
+            ]
         }
     }
 }
