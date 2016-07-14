@@ -1,6 +1,7 @@
 {
     'presets': ['es2015-no-commonjs'],
     'plugins': [
+        'add-module-exports',
         'transform-object-assign',
         'transform-object-rest-spread',
         ['transform-runtime', {
