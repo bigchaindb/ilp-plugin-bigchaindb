@@ -1,7 +1,6 @@
 {
     'presets': ['es2015-no-commonjs'],
     'plugins': [
-        'transform-inline-environment-variables',
         'transform-object-assign',
         'transform-object-rest-spread',
         ['transform-runtime', {
