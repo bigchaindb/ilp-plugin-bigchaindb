@@ -224,4 +224,4 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 }
 
-module.exports = BigchainDBLedgerPlugin;
+export default BigchainDBLedgerPlugin;
