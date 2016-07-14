@@ -66,7 +66,7 @@
     "eslint-config-ascribe": "^2.0.0",
     "eslint-plugin-import": "^1.8.0",
     "rimraf": "^2.5.2",
-    "webpack": "^2.1.0-beta.7",
+    "webpack": "=2.1.0-beta.17",
     "webpack-combine-loaders": "^2.0.0"
   }
 }
