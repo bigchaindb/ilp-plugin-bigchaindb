@@ -227,7 +227,6 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             let ilpHeader;
             if (transfer.data && transfer.data.ilp_header) {
                 ilpHeader = transfer.data.ilp_header;
-
             } else {
                 ilpHeader = {
                     account: transfer.destinationAccount.vk,
@@ -351,8 +350,11 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                     typeId: TypeIds.ed25519
                 });
 
-                const noteToSelf = tx.data.payload.ilp_header.noteToSelf;
-                delete tx.data.payload.ilp_header.noteToSelf;
+                let noteToSelf = {};
+                if (tx.data.payload.ilp_header) {
+                    noteToSelf = tx.data.payload.ilp_header.noteToSelf;
+                    delete tx.data.payload.ilp_header.noteToSelf;
+                }
 
                 const transfer = {
                     id: `${changes.transaction.id}`,
