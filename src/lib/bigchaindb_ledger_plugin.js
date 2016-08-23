@@ -173,7 +173,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
         let res;
         try {
-            res = yield request(`${account.uri.api}/api/connectors/`, {
+            res = yield request(`${account.uri.api}/api/connectors/${this.id}`, {
                 method: 'GET',
                 query: {
                     app: 'interledger'
