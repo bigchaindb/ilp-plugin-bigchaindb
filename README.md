@@ -1,4 +1,4 @@
-# [![js-ilp-plugin-bigchaindb](media/repo-banner@2x.png)](https://www.bigchaindb.com)
+# [![ilp-plugin-bigchaindb](media/repo-banner@2x.png)](https://www.bigchaindb.com)
 
 > ILP ledger plugin for [BigchainDB](https://github.com/bigchaindb/bigchaindb)
 
@@ -13,33 +13,23 @@ npm install ilp-plugin-bigchaindb
 
 ## Usage
 
-### Node
-
-Use the CommonJS export (also the default package export):
-
-```js
-const BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')
-```
-
-### Browser
-
 Depending on your build system and preferences, you can use any of the following exports:
 
-#### CommonJS (default package export)
+### CommonJS (default package export)
 
 ```js
 const BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')
 ```
 
-#### ES6 modules
+### ES6 modules
 
 ```js
 import BigchainDBLedgerPlugin from 'ilp-plugin-bigchaindb/es6'
 ```
 
-#### Bundled version (UMD export)
+### Bundled version (UMD export)
 
-add `/bundle/bundle.min.js` to your HTML and use `window.BigchainDBLedgerPlugin`:
+Add `/bundle/bundle.min.js` to your HTML and use `window.BigchainDBLedgerPlugin`:
 
 ```html
 <script src="/bundle/bundle.min.js"></script>
