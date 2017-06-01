@@ -1,24 +1,53 @@
-# js-ilp-plugin-bigchaindb
+# [![js-ilp-plugin-bigchaindb](media/repo-banner@2x.png)](https://www.bigchaindb.com)
 
-> ILP Ledger plugin for BigchainDB
+> ILP ledger plugin for [BigchainDB](https://github.com/bigchaindb/bigchaindb)
 
 [![npm](https://img.shields.io/npm/v/ilp-plugin-bigchaindb.svg)](https://www.npmjs.com/package/ilp-plugin-bigchaindb)
+[![js bigchaindb](https://img.shields.io/badge/js-bigchaindb-39BA91.svg)](https://github.com/ascribe/javascript)
+
+## Installation
+
+```bash
+npm install ilp-plugin-bigchaindb
+```
 
 ## Usage
 
 ### Node
 
 Use the CommonJS export (also the default package export):
-`var BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')`
+
+```js
+const BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')
+```
 
 ### Browser
 
 Depending on your build system and preferences, you can use any of the following exports:
 
-* CommonJS (default package export; `var BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')`)
-* ES6 modules (`import BigchainDBLedgerPlugin from 'ilp-plugin-bigchaindb/es6'`)
-* Bundled version (UMD export; add `/bundle/bundle.min.js` to your HTML and use
-  `window.BigchainDBLedgerPlugin`)
+#### CommonJS (default package export)
+
+```js
+const BigchainDBLedgerPlugin = require('ilp-plugin-bigchaindb')
+```
+
+#### ES6 modules
+
+```js
+import BigchainDBLedgerPlugin from 'ilp-plugin-bigchaindb/es6'
+```
+
+#### Bundled version (UMD export)
+
+add `/bundle/bundle.min.js` to your HTML and use `window.BigchainDBLedgerPlugin`:
+
+```html
+<script src="/bundle/bundle.min.js"></script>
+
+<script>
+    window.BigchainDBLedgerPlugin;
+</script>
+```
 
 ## npm releases
 
