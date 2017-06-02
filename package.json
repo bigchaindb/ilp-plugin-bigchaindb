@@ -1,9 +1,9 @@
 {
   "name": "ilp-plugin-bigchaindb",
   "version": "0.0.7",
-  "description": "ILP Ledger plugin for BigchainDB",
-  "homepage": "https://www.bigchain.io/",
-  "bugs": "https://github.com/bigchain/js-ilp-plugin-bigchaindb/issues",
+  "description": "ILP ledger plugin for BigchainDB",
+  "homepage": "https://www.bigchaindb.com",
+  "bugs": "https://github.com/bigchain/ilp-plugin-bigchaindb/issues",
   "license": "Apache-2.0",
   "author": "BigchainDB Team <info@bigchaindb.com>",
   "files": [
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:bigchaindb/js-ilp-plugin-bigchaindb.git"
+    "url": "git@github.com:bigchaindb/ilp-plugin-bigchaindb.git"
   },
   "keywords": [
     "bigchaindb",
@@ -37,7 +37,10 @@
     "build:es6": "rimraf ./es6 && cross-env babel ./src -d es6",
     "clean": "rimraf ./build ./bundle ./cjs ./es6",
     "prepublish": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "./node_modules/release-it/bin/release.js --src.tagName='v%s' --github.release --npm.publish --non-interactive",
+    "release-minor": "./node_modules/release-it/bin/release.js minor --src.tagName='v%s' --github.release --npm.publish --non-interactive",
+    "release-major": "./node_modules/release-it/bin/release.js major --src.tagName='v%s' --github.release --npm.publish --non-interactive"
   },
   "dependencies": {
     "base64url": "^2.0.0",
@@ -74,10 +77,12 @@
     "babel-preset-latest": "^6.22.0",
     "babel-runtime": "^6.22.0",
     "cross-env": "^3.1.4",
-    "eslint": "^3.14.1",
+    "eslint": "^3.19.0",
     "eslint-config-ascribe": "^3.0.1",
-    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-import": "^2.3.0",
+    "release-it": "^2.7.3",
     "rimraf": "^2.5.4",
-    "webpack": "^2.2.1"
+    "webpack": "^2.2.1",
+    "webpack-combine-loaders": "^2.0.0"
   }
 }
