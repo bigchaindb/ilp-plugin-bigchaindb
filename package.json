@@ -1,9 +1,9 @@
 {
   "name": "ilp-plugin-bigchaindb",
   "version": "0.0.7",
-  "description": "ILP Ledger plugin for BigchainDB",
-  "homepage": "https://www.bigchain.io/",
-  "bugs": "https://github.com/bigchain/js-ilp-plugin-bigchaindb/issues",
+  "description": "ILP ledger plugin for BigchainDB",
+  "homepage": "https://www.bigchaindb.com",
+  "bugs": "https://github.com/bigchain/ilp-plugin-bigchaindb/issues",
   "license": "Apache-2.0",
   "author": "BigchainDB Team <info@bigchaindb.com>",
   "files": [
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:bigchaindb/js-ilp-plugin-bigchaindb.git"
+    "url": "git@github.com:bigchaindb/ilp-plugin-bigchaindb.git"
   },
   "keywords": [
     "bigchaindb",
@@ -37,7 +37,10 @@
     "build:es6": "rimraf ./es6 && cross-env babel ./src -d es6",
     "clean": "rimraf ./build ./bundle ./cjs ./es6",
     "prepublish": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "./node_modules/release-it/bin/release.js --src.tagName='v%s' --github.release --npm.publish --non-interactive",
+    "release-minor": "./node_modules/release-it/bin/release.js minor --src.tagName='v%s' --github.release --npm.publish --non-interactive",
+    "release-major": "./node_modules/release-it/bin/release.js major --src.tagName='v%s' --github.release --npm.publish --non-interactive"
   },
   "dependencies": {
     "co": "^4.6.0",
@@ -52,7 +55,7 @@
   },
   "devDependencies": {
     "babel-cli": "^6.8.0",
-    "babel-eslint": "^6.0.4",
+    "babel-eslint": "^7.1.1",
     "babel-loader": "^6.0.1",
     "babel-plugin-add-module-exports": "^0.2.1",
     "babel-plugin-transform-object-assign": "^6.8.0",
@@ -62,9 +65,10 @@
     "babel-preset-es2015-no-commonjs": "0.0.2",
     "babel-runtime": "^6.9.2",
     "cross-env": "^1.0.8",
-    "eslint": "^2.10.2",
-    "eslint-config-ascribe": "^2.0.0",
-    "eslint-plugin-import": "^1.8.0",
+    "eslint": "^3.19.0",
+    "eslint-config-ascribe": "^3.0.1",
+    "eslint-plugin-import": "^2.3.0",
+    "release-it": "^2.7.3",
     "rimraf": "^2.5.2",
     "webpack": "=2.1.0-beta.17",
     "webpack-combine-loaders": "^2.0.0"
