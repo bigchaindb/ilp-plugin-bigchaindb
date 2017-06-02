@@ -5,8 +5,13 @@ const uuid = require('uuid/v4');
 const crypto = require('crypto');
 const assert = require('assert');
 
-const BDB_SERVER_URL = "http://localhost:9984/api/v1/";
-const BDB_WS_URL = "ws://localhost:9985/api/v1/streams/valid_tx";
+const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://localhost:9984';
+const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://localhost:9985';
+
+const BDB_SERVER_API = `${BDB_SERVER_URL}/api/v1/`;
+const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_tx`;
+
+console.log(BDB_SERVER_API, BDB_WS_API)
 
 function hash(fulfillment) {
     const h = crypto.createHash('sha256')
@@ -22,8 +27,8 @@ console.log('condition: ', condition, 'fulfillment:', fulfillment)
 async function runTest(){
 
     let sender = new BigchainDBLedgerPlugin({
-        server: BDB_SERVER_URL,
-        ws: BDB_WS_URL,
+        server: BDB_SERVER_API,
+        ws: BDB_WS_API,
         keyPair: {
             privateKey: "6HgCvsvF7o1zFDPyXZsmU6ZZ7eiiY8i2ccB6z21sfNC8",
             publicKey: "79K8SPZbeSDYXBrWgt3dsNmYTZbKNtdYQ5XrjA9XEWfG"
@@ -31,8 +36,8 @@ async function runTest(){
     });
 
     let receiver = new BigchainDBLedgerPlugin({
-        server: BDB_SERVER_URL,
-        ws: BDB_WS_URL,
+        server: BDB_SERVER_API,
+        ws: BDB_WS_API,
         keyPair: {
             privateKey: "4HhPSKV9QGGJr2U6Mq5DoZRoqrCU38RfGK6gDtXKAn1L",
             publicKey: "AkZUXyGrEygFF6R8vQveE2Wswkn4rSudEBuUSaV7Wiin"
@@ -54,11 +59,11 @@ async function runTest(){
         driver.Transaction.signTransaction(txInitialCoins, sender._keyPair.privateKey);
 
     await driver.Connection
-        .postTransaction(txInitialCoinsSigned, BDB_SERVER_URL)
+        .postTransaction(txInitialCoinsSigned, BDB_SERVER_API)
         .then((res) => {
             console.log('Response from BDB server', res);
             return driver.Connection
-                .pollStatusAndFetchTransaction(txInitialCoinsSigned.id, BDB_SERVER_URL)
+                .pollStatusAndFetchTransaction(txInitialCoinsSigned.id, BDB_SERVER_API)
         });
 
 

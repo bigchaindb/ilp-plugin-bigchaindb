@@ -21,6 +21,8 @@ const PATHS = {
 const DEFINITIONS = {
     'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
+        BDB_SERVER_URL: JSON.stringify(`${process.env.BDB_SERVER_URL || 'http://localhost:9984'}`),
+        BDB_WS_URL: JSON.stringify(`${process.env.BDB_WS_URL || 'ws://localhost:9985'}`),
     },
 };
 
