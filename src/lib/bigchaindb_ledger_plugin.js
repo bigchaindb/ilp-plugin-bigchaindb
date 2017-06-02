@@ -1,39 +1,54 @@
-import co from 'co';
 import reconnectCore from 'reconnect-core';
 import EventEmitter2 from 'eventemitter2';
+import crypto from 'crypto';
+import assert from 'assert';
+import base58 from 'bs58';
+const uuid = require('uuid/v4');
+
+import * as driver from 'js-bigchaindb-driver/dist/node';
+
 import SimpleWebsocket from 'simple-websocket';
-import moment from 'moment';
-import { parseEscrowData, filterByType, TypeIds } from 'cryptoconditions-utils';
-
-import request from '../util/request';
-
 
 class BigchainDBLedgerPlugin extends EventEmitter2 {
 
-    constructor(options) {
-        super();
+    constructor(opts) {
+        super()
 
-        this.id = options.auth.ledgerId;
-        this.credentials = options.auth;
-        this.config = options.config;
+        this._server = opts.server
+        this._ws = opts.ws
+        this._keyPair = opts.keyPair
+        this._connected = false
+        this._prefix = 'g.crypto.bigchaindb.'
 
-        this.connection = null;
-        this.connected = false;
+        this._transfers = {}
+        this._notesToSelf = {}
+        this._fulfillments = {}
+
+        if (!this._keyPair) {
+            throw new Error('missing opts.secret')
+        }
+
+        if (!this._server) {
+            throw new Error('missing opts.server')
+        }
+
+        if (!this._ws) {
+            throw new Error('missing opts.ws')
+        }
     }
 
-    connect() {
-        return co(this._connect.bind(this));
+    async connect() {
+        await this._connect()
     }
 
-    * _connect() {
-        const wsUri = this.credentials.account.uri.ws;
+    _connect() {
+        const streamUri = this._ws;
 
         if (this.connection) {
             console.warn('already connected, ignoring connection request');
             return Promise.resolve(null);
         }
 
-        const streamUri = `${wsUri}/users/${this.credentials.account.id}/changes`;
         console.log(`subscribing to ${streamUri}`);
 
         const reconnect = reconnectCore(() => new SimpleWebsocket(streamUri));
@@ -44,12 +59,9 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                     console.log(`ws connected to ${streamUri}`);
                 });
                 ws.on('data', (msg) => {
-                    const notification = JSON.parse(msg);
-                    co.wrap(this._handleNotification)
-                        .call(this, notification)
-                        .catch((err) => {
-                            console.error(err);
-                        });
+                    const ev = JSON.parse(msg);
+                    console.log(ev)
+                    this._handleTransaction(ev)
                 });
                 ws.on('close', () => {
                     console.log(`ws disconnected from ${streamUri}`);
@@ -57,11 +69,11 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             })
                 .once('connect', () => resolve(null))
                 .on('connect', () => {
-                    this.connected = true;
+                    this._connected = true;
                     this.emit('connect');
                 })
                 .on('disconnect', () => {
-                    this.connected = false;
+                    this._connected = false;
                     this.emit('disconnect');
                 })
                 .on('error', (err) => {
@@ -80,307 +92,356 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     isConnected() {
-        return this.connected;
+        return this._connected;
     }
 
     getInfo() {
-        return co.wrap(this._getInfo).call(this);
-    }
-
-    * _getInfo() {
-        console.log('getInfo', this.id);
         return {
+            prefix: this._prefix,
             precision: 10,
             scale: 4
         };
     }
 
     getAccount() {
-        return this.credentials.account;
+        return this._prefix + this._keyPair.publicKey;
     }
 
-    getBalance() {
-        return co.wrap(this._getAssetList)
-            .call(this)
-            .then((res) => res.length);
+    async getBalance() {
+        const unspentTransactions = await this._getUnspentTransactions();
+        return unspentTransactions
+            .map((transaction) => {
+                return transaction.outputs
+                    .map((output) => {
+                        return parseInt(output.amount, 10)
+                    })
+                    .reduce((prevVal, elem) => prevVal + elem, 0)
+            })
+            .reduce((prevVal, elem) => prevVal + elem, 0)
     }
 
-    getAssetList() {
-        return co.wrap(this._getAssetList).call(this);
+    async _getUnspentTransactions() {
+        const outputs = await this._getUnspentOutputs();
+        const unspentTransactions = await Promise.all(
+            outputs.map(async (output) => {
+                return await this._getTransactionForOutput(output);
+            })
+        );
+
+        return unspentTransactions
+            .filter(transaction => {
+                return !!transaction.metadata
+                    && !!transaction.metadata.type
+                    && (transaction.metadata.type === 'ilp:coin'
+                    || transaction.metadata.type === 'ilp:fulfill')
+                    && transaction.outputs[0].public_keys.length === 1
+            })
     }
 
-    * _getAssetList() {
-        const {
-            account
-        } = this.credentials;
+    async _getUnspentOutputs() {
+        const {publicKey} = this._keyPair;
 
-        let res;
-
-        try {
-            res = yield request(`${account.uri.api}/api/accounts/${account.id}/assets/`, {
-                method: 'GET',
-                query: {
-                    app: 'interledger'
-                }
-            });
-        } catch (e) {
-            console.error(e);
-            throw new Error('Unable to retrieve asset list');
-        }
-
-        if (res && res.assets && res.assets.bigchain && Array.isArray(res.assets.bigchain)) {
-            return res.assets.bigchain;
-        } else {
-            throw new Error('Unable to retrieve asset list');
-        }
+        return await driver.Connection.listOutputs(
+            {public_key: publicKey, unspent: true},
+            this._server)
+            .then(res => res);
     }
 
-    getAsset(id) {
-        return co.wrap(this._getAsset).call(this, id);
+    async _getTransactionForOutput(output) {
+        const txId = output.split("/")[2];
+        return await driver.Connection.getTransaction(txId, this._server)
+            .then((tx) => tx)
     }
 
-    * _getAsset(id) {
-        const {
-            account
-        } = this.credentials;
+    async sendTransfer(transfer) {
+        const [, localAddress] = transfer.to.match(/^g\.crypto\.bigchaindb\.(.+)/)
+        const amount = transfer.amount
+        // TODO: is there a better way to do note to self?
+        this._notesToSelf[transfer.id] = JSON.parse(JSON.stringify(transfer.noteToSelf))
 
-        let res;
-        console.log('_getAsset', id)
-        try {
-            res = yield request(`${account.uri.api}/api/assets/${id}/`, {
-                method: 'GET'
-            });
-        } catch (e) {
-            console.error(e);
-            throw new Error('Unable to retrieve asset');
-        }
+        console.log('sending', amount.toString(), 'to', localAddress,
+            'condition', transfer.executionCondition)
 
-        return res;
-    }
+        const unspentTransactions = await this._getUnspentTransactions();
 
-    getConnectors() {
-        return co.wrap(this._getConnectors).call(this);
-    }
+        assert(unspentTransactions.length > 0)
+        const inputTransaction = unspentTransactions[0];
+        const inputAmount = inputTransaction.outputs[0].amount;
 
-    * _getConnectors() {
-        if (this.id == null) {
-            throw new Error('Must be connected before getConnectors can be called');
-        }
+        const subconditionExecute = driver.Transaction.makeEd25519Condition(
+            this._keyPair.publicKey, false
+        );
+        const subconditionAbort = driver.Transaction.makeEd25519Condition(
+            localAddress, false
+        );
 
-        const {
-            account
-        } = this.credentials;
+        let condition = driver.Transaction.makeThresholdCondition(1,
+            [subconditionExecute, subconditionAbort]);
 
-        let res;
-        try {
-            res = yield request(`${account.uri.api}/api/connectors/${this.id}`, {
-                method: 'GET',
-                query: {
-                    app: 'interledger'
-                }
-            });
-        } catch (e) {
-            console.error(e);
-            throw new Error('Unable to get connectors');
-        }
-        return res;
-    }
+        let output = driver.Transaction.makeOutput(condition, amount.toString());
+        output.public_keys = [this._keyPair.publicKey, localAddress];
 
-    /*
-     Initiates a ledger-local transfer.
-     */
-    send(transfer) {
-        return co.wrap(this._send).call(this, transfer);
-    }
+        const conditionChange = driver.Transaction.makeEd25519Condition(
+            this._keyPair.publicKey
+        );
 
-    * _send(transfer) {
-        const sentTransfers = [];
-        if ('asset' in transfer) {
-            sentTransfers.push(yield this._sendAsset(transfer.asset, transfer));
-        } else if (transfer.amount) {
-            const numAssetsToTransfer = Math.ceil(transfer.amount);
-            const assetList = yield this.getAssetList();
-            for (let i = 0; i < numAssetsToTransfer; i++) {
-                const asset = {
-                    txid: assetList[i].id,
-                    cid: 0
-                };
-                sentTransfers.push(yield this._sendAsset(asset, transfer));
-            }
-        }
-        return sentTransfers;
-    }
+        const outputChange = driver.Transaction.makeOutput(
+            conditionChange, (parseInt(inputAmount, 10) - amount).toString()
+        );
 
-    * _sendAsset(asset, transfer) {
-        console.log('sending asset', transfer)
-
-        const {
-            account
-        } = this.credentials;
-
-        const {
-            txid,
-            cid
-        } = asset;
-        let res;
-        try {
-            let ilpHeader;
-            if (transfer.data && transfer.data.ilp_header) {
-                ilpHeader = transfer.data.ilp_header;
-            } else {
-                ilpHeader = {
-                    account: transfer.destinationAccount.vk,
-                    ledger: transfer.destinationAccount.ledger.id
-                };
-            }
-
-            if (ilpHeader && transfer.noteToSelf) {
-                ilpHeader.noteToSelf = transfer.noteToSelf;
-            }
-
-            let to;
-            if (transfer.account) {
-                if (transfer.account.vk) {
-                    to = transfer.account;
-                } else {
-                    to = {
-                        vk: transfer.account
-                    };
-                }
-            }
-
-            let expiresAt = transfer.expiresAt;
-            if (typeof(expiresAt) === 'string') {
-                expiresAt = moment(expiresAt).unix();
-            }
-
-            res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/`, {
-                method: 'POST',
-                jsonBody: {
-                    source: {
-                        vk: account.id,
-                        sk: account.key
-                    },
-                    to,
-                    ilpHeader,
+        let metadata = {
+            type: {
+                'ilp:escrow': {
+                    id: transfer.id,
+                    ilp: transfer.ilp,
+                    noteToSelf: transfer.noteToSelf,
                     executionCondition: transfer.executionCondition,
-                    expiresAt
-                }
-            });
-        } catch (e) {
-            console.error(e);
-            throw new Error('Unable to escrow transfer');
-        }
-        return res;
-    }
-
-    fulfillCondition(transferID, conditionFulfillment) {
-        if (typeof(transferID) === 'string') {
-            return co.wrap(this._getAsset)
-                .call(this, transferID)
-                .then((transfer) => {
-                    const cid = 0;
-                    const {
-                        abortCondition,
-                        executeCondition
-                    } = parseEscrowData(transfer.transaction.conditions[cid].condition.details);
-                    return co.wrap(this._fulfillCondition).call(this, {
-                        account: {
-                            vk: executeCondition.public_key
-                        },
-                        asset: {
-                            txid: transfer.id,
-                            cid
-                        },
-                    }, conditionFulfillment);
-                });
-        } else {
-            return co.wrap(this._fulfillCondition).call(this, transferID, conditionFulfillment)
-        }
-    }
-
-    * _fulfillCondition(transfer, conditionFulfillment) {
-        let res;
-
-        const {
-            account
-        } = this.credentials;
-
-        const {
-            txid,
-            cid
-        } = transfer.asset;
-
-        try {
-            res = yield request(`${account.uri.api}/api/assets/${txid}/${cid}/escrow/fulfill/`, {
-                method: 'POST',
-                jsonBody: {
-                    source: {
-                        vk: account.id,
-                        sk: account.key
-                    },
-                    to: transfer.account,
-                    conditionFulfillment
-                }
-            });
-        } catch (e) {
-            throw new Error('Unable to escrow transfer');
-        }
-        return 'executed';
-    }
-
-    replyToTransfer() {
-    }
-
-    * _handleNotification(changes) {
-        yield this.emitAsync('incoming', changes);
-        const { account } = this.credentials;
-
-        if (changes.message === 'bigchain_voted_block') {
-            const tx = changes.transaction.transaction;
-            for (const condition of tx.conditions) {
-                const {
-                    abortCondition,
-                    executeCondition,
-                    expiryTime
-                } = parseEscrowData(condition.condition.details);
-
-                const ed25519Conditions = filterByType({
-                    condition: condition.condition.details,
-                    typeId: TypeIds.ed25519
-                });
-
-                let noteToSelf = {};
-                if (tx.data.payload.ilp_header) {
-                    noteToSelf = tx.data.payload.ilp_header.noteToSelf;
-                    delete tx.data.payload.ilp_header.noteToSelf;
-                }
-
-                const transfer = {
-                    id: `${changes.transaction.id}`,
-                    amount: '1.0',
-                    data: tx.data.payload,
-                    executionCondition: 'cc:0:3:47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU:0',
-                    // cancellationCondition: fiveBellsTransfer.cancellation_condition,
-                    expiresAt: moment(expiryTime * 1000).utc().format()
-                };
-
-                if (executeCondition &&
-                    executeCondition.public_key === account.id &&
-                    abortCondition &&
-                    abortCondition.public_key) {
-                    transfer.direction = 'incoming';
-                    transfer.account = `${account.uri.api}/api/accounts/${abortCondition.public_key}`;
-                    yield this.emitAsync('receive', transfer);
-                } else if (ed25519Conditions && ed25519Conditions.length) {
-                    transfer.direction = 'outgoing';
-                    transfer.account = `${account.uri.api}/api/accounts/${ed25519Conditions[0].public_key}`;
-                    transfer.noteToSelf = noteToSelf;
-                    yield this.emitAsync('fulfill_execution_condition', transfer, 'cf:0:');
+                    expiresAt: transfer.expiresAt,
+                    custom: transfer.custom
                 }
             }
+        };
+
+        const tx = driver.Transaction.makeTransferTransaction(
+            inputTransaction,
+            metadata,
+            [output, outputChange],
+            0
+        );
+
+        const txSigned =
+            driver.Transaction.signTransaction(tx, this._keyPair.privateKey);
+
+        console.log('signing and submitting transaction: ' + txSigned)
+        console.log('transaction id of', transfer.id, 'is', txSigned.id)
+
+        await driver.Connection
+            .postTransaction(txSigned, this._server)
+            .then((res) => {
+                console.log('Response from BDB server', res);
+                return driver.Connection
+                    .pollStatusAndFetchTransaction(txSigned.id, this._server)
+            });
+        console.log('completed transaction')
+        console.log('setting up expiry')
+        // this._setupExpiry(transfer.id, transfer.expiresAt)
+    }
+
+    async fulfillCondition(transferId, fulfillment) {
+        assert(this._connected, 'plugin must be connected before fulfillCondition')
+        console.log('preparing to fulfill condition', transferId)
+
+        const cached = this._transfers[transferId]
+        if (!cached) {
+            throw new Error('no transfer with id ' + transferId)
         }
+
+        const condition = crypto
+            .createHash('sha256')
+            .update(Buffer.from(fulfillment, 'base64'))
+            .digest()
+            .toString('base64')
+
+        const { publicKey, privateKey } = this._keyPair
+
+        const outputCondition = driver.Transaction.makeEd25519Condition(publicKey);
+
+        const output = driver.Transaction.makeOutput(
+            outputCondition, cached.outputs[0].amount
+        );
+
+        let metadata = {
+            type: {
+                'ilp:fulfill': {
+                    id: uuid()
+                }
+            }
+        };
+
+        const tx = driver.Transaction.makeTransferTransaction(
+            cached,
+            metadata,
+            [output],
+            0
+        );
+
+        let txFulfillment = driver.Transaction.makeThresholdCondition(1, undefined, false);
+
+        const sourceKey = getSource(this, cached)
+        const abortCondition = driver.Transaction.makeEd25519Condition(sourceKey, false);
+        txFulfillment.addSubconditionUri(abortCondition.getConditionUri());
+
+        const executeFulfillment = driver.Transaction.makeEd25519Condition(publicKey, false)
+        executeFulfillment.sign(
+            new Buffer(driver.Transaction.serializeTransactionIntoCanonicalString(tx)),
+            new Buffer(base58.decode(privateKey))
+        );
+        txFulfillment.addSubfulfillment(executeFulfillment);
+
+        tx.inputs[0].fulfillment = txFulfillment.serializeUri();
+
+        console.log('signing and submitting transaction: ' + tx)
+
+        await driver.Connection
+            .postTransaction(tx, this._server)
+            .then((res) => {
+                console.log('Response from BDB server', res);
+                return driver.Connection
+                    .pollStatusAndFetchTransaction(tx.id, this._server)
+            });
+
+        console.log('completed fulfill transaction')
+    }
+
+    _setupExpiry(transferId, expiresAt) {
+        const that = this
+        // TODO: this is a bit of an unsafe hack, but if the time is not adjusted
+        // like this, the cancel transaction fails.
+        const delay = (new Date(expiresAt)) - (new Date()) + 5000
+
+        setTimeout(
+            that._expireTransfer.bind(that, transferId),
+            delay)
+    }
+
+    async _expireTransfer(transferId) {
+        if (this._transfers[transferId].Done) return
+        debug('preparing to cancel transfer at', new Date().toISOString())
+
+        // make sure that the promise rejection is handled no matter
+        // which step it happens during.
+        try {
+            const cached = this._transfers[transferId]
+            const tx = await this._api.prepareEscrowCancellation(this._address, {
+                owner: cached.Account,
+                escrowSequence: cached.Sequence
+            })
+
+            const signed = this._api.sign(tx.txJSON, this._secret)
+            debug('signing and submitting transaction: ' + tx.txJSON)
+            debug('cancel tx id of', transferId, 'is', signed.id)
+
+            await Submitter.submit(this._api, signed)
+            debug('completed cancel transaction')
+        } catch (e) {
+            debug('CANCELLATION FAILURE! error was:', e.message)
+
+            // just retry if it was a ledger thing
+            // TODO: is there any other scenario to retry under?
+            if (e.name !== 'NotAcceptedError') return
+
+            debug('CANCELLATION FAILURE! (' + transferId + ') retrying...')
+            await this._expireTransfer(transferId)
+        }
+    }
+
+    async _handleTransaction(changes) {
+        // yield this.emitAsync('incoming', changes);
+        // const {publicKey} = this._keyPair;
+        const transaction = await driver.Connection.getTransaction(changes.tx_id, this._server)
+        const direction = getDirection(this, transaction)
+
+        if (transaction) {
+            const transfer = transactionToTransfer(this, transaction)
+            this._transfers[transfer.id] = transaction
+            console.log('handle', transaction.id, direction)
+            this.emitAsync(direction + '_prepare', transfer, transaction)
+        }
+        //     if (transaction.TransactionType === 'EscrowCreate') {
+        //   const transfer = Translate.escrowCreateToTransfer(this, ev)
+        //   this.emitAsync(transfer.direction + '_prepare', transfer)
+        //
+        // } else if (transaction.TransactionType === 'EscrowFinish') {
+        //   const transfer = Translate.escrowFinishToTransfer(this, ev)
+        //   // TODO: clear the cache at some point
+        //   const fulfillment = Condition.rippleToFulfillment(transaction.Fulfillment)
+        //   this.emitAsync(transfer.direction + '_fulfill', transfer, fulfillment)
+        //
+        //   // remove note to self from the note to self cache
+        //   delete this._notesToSelf[transfer.id]
+        //   this._fulfillments[transfer.id] = fulfillment
+        //   this._transfers[transfer.id].Done = true
+        //
+        // } else if (transaction.TransactionType === 'EscrowCancel') {
+        //   // TODO: clear the cache at some point
+        //   const transfer = Translate.escrowCancelToTransfer(this, ev)
+        //   this.emitAsync(transfer.direction + '_cancel', transfer)
+        //
+        //   // remove note to self from the note to self cache
+        //   delete this._notesToSelf[transfer.id]
+        //   this._transfers[transfer.id].Done = true
+        //
+        // } else if (transaction.TransactionType === 'Payment') {
+        //   const message = Translate.paymentToMessage(this, ev)
+        //   this.emitAsync(message.direction + '_message', message)
+        // }
     }
 }
 
 export default BigchainDBLedgerPlugin;
+
+
+function transactionToTransfer(plugin, transaction) {
+    const metadata = transaction.metadata.type['ilp:escrow']
+        || transaction.metadata.type['ilp:fulfill'];
+    return {
+        id: metadata.id,
+        to: plugin._prefix + getDestination(plugin, transaction),
+        from: plugin._prefix + getSource(plugin, transaction),
+        direction: getDirection(plugin, transaction),
+        ledger: plugin._prefix,
+        amount: getAmount(plugin, transaction),
+        ilp: metadata.ilp,
+        executionCondition: metadata.executionCondition,
+        noteToSelf: metadata.noteToSelf,
+        expiresAt: metadata.expiresAt
+    }
+}
+
+function getDirection(plugin, transaction) {
+    const { publicKey } = plugin._keyPair;
+    if (transaction.inputs[0].owners_before.indexOf(publicKey) > -1) {
+        return "outgoing"
+    }
+    if (transaction.outputs[0].public_keys.indexOf(publicKey) > -1) {
+        return "incoming"
+    }
+}
+
+function getSource(plugin, transaction) {
+    // TODO: include all inputs
+    const inputKeys = transaction.inputs[0].owners_before;
+    return inputKeys[0]
+}
+
+function getDestination(plugin, transaction) {
+    // TODO: include all outputs
+    const outputKeys = transaction.outputs[0].public_keys;
+    const { publicKey } = plugin._keyPair;
+    return _selectPublicKey(outputKeys, publicKey)
+}
+
+function _selectPublicKey(keyList, keyBlackList) {
+    assert(keyList.length <= 2);
+    if (keyList.length === 1) {
+        return keyList[0]
+    }
+    if (keyList.length > 1) {
+        const selectedKeys = keyList
+            .filter((outputKey) => outputKey !== keyBlackList);
+        assert(selectedKeys.length > 0);
+        return selectedKeys[0]
+    }
+}
+
+function getAmount(plugin, transaction) {
+    const { publicKey } = plugin._keyPair;
+    return transaction.outputs
+        .filter((output) => {
+            return output.public_keys.indexOf(publicKey) === 0
+        })
+        .map((output) => {
+            return parseInt(output.amount, 10)
+        })
+        .reduce((prevVal, elem) => prevVal + elem, 0)
+}
