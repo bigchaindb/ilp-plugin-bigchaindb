@@ -1,5 +1,7 @@
 # [![ilp-plugin-bigchaindb](media/repo-banner@2x.png)](https://www.bigchaindb.com)
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/bigchaindb/ilp-plugin-bigchaindb.svg)](https://greenkeeper.io/)
+
 > ILP ledger plugin for [BigchainDB](https://github.com/bigchaindb/bigchaindb)
 
 [![npm](https://img.shields.io/npm/v/ilp-plugin-bigchaindb.svg)](https://www.npmjs.com/package/ilp-plugin-bigchaindb)
