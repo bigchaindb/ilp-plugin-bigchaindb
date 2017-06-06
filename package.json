@@ -37,7 +37,7 @@
     "build:es6": "rimraf ./es6 && cross-env babel ./src -d es6",
     "clean": "rimraf ./build ./bundle ./cjs ./es6",
     "prepublish": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --harmony-async-await test/plugin-test.js",
     "release": "./node_modules/release-it/bin/release.js --src.tagName='v%s' --github.release --npm.publish --non-interactive",
     "release-minor": "./node_modules/release-it/bin/release.js minor --src.tagName='v%s' --github.release --npm.publish --non-interactive",
     "release-major": "./node_modules/release-it/bin/release.js major --src.tagName='v%s' --github.release --npm.publish --non-interactive"
