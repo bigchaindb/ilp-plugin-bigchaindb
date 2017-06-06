@@ -1,8 +1,9 @@
 {
-    "presets": ["es2015-no-commonjs"],
+    "presets": ["es2015"],
     "plugins": [
         "transform-object-assign",
         "transform-object-rest-spread",
+        "transform-async-to-generator",
         ["transform-runtime", {
             "polyfill": false,
             "regenerator": true

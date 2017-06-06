@@ -21,6 +21,8 @@ const PATHS = {
 const DEFINITIONS = {
     'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
+        BDB_SERVER_URL: JSON.stringify(`${process.env.BDB_SERVER_URL || 'http://localhost:9984'}`),
+        BDB_WS_URL: JSON.stringify(`${process.env.BDB_WS_URL || 'ws://localhost:9985'}`),
     },
 };
 
@@ -56,7 +58,10 @@ if (PRODUCTION) {
 /** LOADERS **/
 const JS_LOADER = combineLoaders([
     {
-        loader: 'babel',
+        loader: 'babel-loader',
+        options: {
+            presets: ['es2015'],
+        },
         query: {
             cacheDirectory: true,
         },
@@ -84,18 +89,16 @@ module.exports = {
         path: PRODUCTION ? PATHS.BUNDLE : PATHS.BUILD,
     },
 
-    debug: !PRODUCTION,
-
     devtool: PRODUCTION ? '#source-map' : '#inline-source-map',
 
     resolve: {
-        extensions: ['', '.js', '.jsx'],
+        extensions: ['.js', '.jsx'],
         modules: ['node_modules'], // Don't use absolute path here to allow recursive matching
     },
 
     plugins: PLUGINS,
 
     module: {
-        loaders: LOADERS,
+        rules: LOADERS,
     },
 };
