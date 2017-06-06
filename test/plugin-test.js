@@ -1,10 +1,19 @@
-// Requires Node.js 7.9 or 7.10
-// Also make sure to "npm install moment uuid"
+const BigchainDBLedgerPlugin = require('../cjs/lib/bigchaindb_ledger_plugin');
+const driver = require('js-bigchaindb-driver/dist/node');
+const moment = require('moment');
+const uuid = require('uuid/v4');
+const crypto = require('crypto');
+const assert = require('assert');
 
-const Plugin = require('./')
-const crypto = require('crypto')
-const moment = require('moment')
-const uuid = require('uuid/v4')
+const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://localhost:9984';
+const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://localhost:9985';
+// const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://35.157.131.84:9984';
+// const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://35.157.131.84:9985';
+
+const BDB_SERVER_API = `${BDB_SERVER_URL}/api/v1/`;
+const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_tx`;
+
+console.log(BDB_SERVER_API, BDB_WS_API)
 
 function hash(fulfillment) {
     const h = crypto.createHash('sha256')
@@ -16,22 +25,65 @@ const fulfillment = crypto.randomBytes(32).toString('base64')
 const condition = hash(fulfillment).toString('base64')
 console.log('condition: ', condition, 'fulfillment:', fulfillment)
 
-async function runTest() {
-    const sender = new Plugin({
-        // plugin options
-    })
 
-    const receiver = new Plugin({
-        // plugin options
-    })
+async function runTest(){
+
+    let sender = new BigchainDBLedgerPlugin({
+        server: BDB_SERVER_API,
+        ws: BDB_WS_API,
+        keyPair: {
+            privateKey: "6HgCvsvF7o1zFDPyXZsmU6ZZ7eiiY8i2ccB6z21sfNC8",
+            publicKey: "79K8SPZbeSDYXBrWgt3dsNmYTZbKNtdYQ5XrjA9XEWfG"
+        }
+    });
+
+    let receiver = new BigchainDBLedgerPlugin({
+        server: BDB_SERVER_API,
+        ws: BDB_WS_API,
+        keyPair: {
+            privateKey: "4HhPSKV9QGGJr2U6Mq5DoZRoqrCU38RfGK6gDtXKAn1L",
+            publicKey: "AkZUXyGrEygFF6R8vQveE2Wswkn4rSudEBuUSaV7Wiin"
+        }
+    });
+
+    const txInitialCoins = driver.Transaction.makeCreateTransaction(
+        null,
+        {type: 'ilp:coin', timestamp: moment().format('X')},
+        [
+            driver.Transaction.makeOutput(
+                driver.Transaction.makeEd25519Condition(sender._keyPair.publicKey),
+                '1000')],
+        sender._keyPair.publicKey
+    );
+
+    // sign, post and poll status
+    const txInitialCoinsSigned =
+        driver.Transaction.signTransaction(txInitialCoins, sender._keyPair.privateKey);
+
+    await driver.Connection
+        .postTransaction(txInitialCoinsSigned, BDB_SERVER_API)
+        .then((res) => {
+            console.log('Response from BDB server', res);
+            return driver.Connection
+                .pollStatusAndFetchTransaction(txInitialCoinsSigned.id, BDB_SERVER_API)
+        });
+
+
+    console.log("sender connected? ", sender.isConnected())
+    console.log("receiver connected? ", receiver.isConnected())
 
     await sender.connect()
-    console.log('sender connected')
-    await receiver.connect()
-    console.log('receiver connected')
-    console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+    console.log("sender connected? ", sender.isConnected())
+    console.log("sender info? ", sender.getInfo())
+    console.log("sender account? ", sender.getAccount())
+    console.log("sender balance? ", await sender.getBalance())
 
-    console.log('submitting first transfer')
+    await receiver.connect()
+    console.log("receiver connected? ", receiver.isConnected())
+    console.log("receiver info? ", receiver.getInfo())
+    console.log("receiver account? ", receiver.getAccount())
+    console.log("receiver balance? ", await receiver.getBalance())
+
     const transfer = {
         id: uuid(),
         from: sender.getAccount(),
@@ -138,6 +190,7 @@ async function runTest() {
     await receiver.disconnect()
     console.log('disconnected plugins')
     process.exit()
+
 }
 
 runTest().catch(err => console.log(err))

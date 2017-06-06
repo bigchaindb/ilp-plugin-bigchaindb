@@ -253,7 +253,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         let metadata = {
             type: {
                 'ilp:fulfill': {
-                    id: uuid()
+                    id: uuid(),
+                    fulfillment
                 }
             }
         };
@@ -277,6 +278,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             new Buffer(base58.decode(privateKey))
         );
         txFulfillment.addSubfulfillment(executeFulfillment);
+
+        // TODO: add fulfillment to threshold (2-2 [fulfillment, 1-2 [execute, abort])
 
         tx.inputs[0].fulfillment = txFulfillment.serializeUri();
 
@@ -344,33 +347,20 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         if (transaction) {
             const transfer = transactionToTransfer(this, transaction)
             this._transfers[transfer.id] = transaction
-            console.log('handle', transaction.id, direction)
-            this.emitAsync(direction + '_prepare', transfer, transaction)
+            console.log("received", transaction.metadata.type)
+            if (transaction.metadata.type.hasOwnProperty('ilp:escrow')) {
+                console.log('handle', transaction.id, direction + '_prepare', this._keyPair.publicKey)
+                this.emitAsync(direction + '_prepare', transfer, transaction)
+            } else if (transaction.metadata.type.hasOwnProperty('ilp:fulfill')) {
+                const fulfillment = transaction.metadata.type['ilp:fulfill'].fulfillment
+                console.log('handle', transaction.id, direction + '_fulfill', this._keyPair.publicKey)
+                this.emitAsync(direction + '_fulfill', transfer, fulfillment)
+            }
+            else if (transaction.metadata.type.hasOwnProperty('ilp:cancel')) {
+                console.log('handle', transaction.id, direction + '_cancel', this._keyPair.publicKey)
+                this.emitAsync(direction + '_cancel', transfer)
+            }
         }
-        //     if (transaction.TransactionType === 'EscrowCreate') {
-        //   const transfer = Translate.escrowCreateToTransfer(this, ev)
-        //   this.emitAsync(transfer.direction + '_prepare', transfer)
-        //
-        // } else if (transaction.TransactionType === 'EscrowFinish') {
-        //   const transfer = Translate.escrowFinishToTransfer(this, ev)
-        //   // TODO: clear the cache at some point
-        //   const fulfillment = Condition.rippleToFulfillment(transaction.Fulfillment)
-        //   this.emitAsync(transfer.direction + '_fulfill', transfer, fulfillment)
-        //
-        //   // remove note to self from the note to self cache
-        //   delete this._notesToSelf[transfer.id]
-        //   this._fulfillments[transfer.id] = fulfillment
-        //   this._transfers[transfer.id].Done = true
-        //
-        // } else if (transaction.TransactionType === 'EscrowCancel') {
-        //   // TODO: clear the cache at some point
-        //   const transfer = Translate.escrowCancelToTransfer(this, ev)
-        //   this.emitAsync(transfer.direction + '_cancel', transfer)
-        //
-        //   // remove note to self from the note to self cache
-        //   delete this._notesToSelf[transfer.id]
-        //   this._transfers[transfer.id].Done = true
-        //
         // } else if (transaction.TransactionType === 'Payment') {
         //   const message = Translate.paymentToMessage(this, ev)
         //   this.emitAsync(message.direction + '_message', message)
@@ -400,11 +390,22 @@ function transactionToTransfer(plugin, transaction) {
 
 function getDirection(plugin, transaction) {
     const { publicKey } = plugin._keyPair;
-    if (transaction.inputs[0].owners_before.indexOf(publicKey) > -1) {
-        return "outgoing"
+    const metadata = transaction.metadata.type;
+    if (metadata.hasOwnProperty('ilp:escrow')) {
+        if (transaction.inputs[0].owners_before.indexOf(publicKey) > -1) {
+            return "outgoing"
+        }
+        if (transaction.outputs[0].public_keys.indexOf(publicKey) > -1) {
+            return "incoming"
+        }
     }
-    if (transaction.outputs[0].public_keys.indexOf(publicKey) > -1) {
-        return "incoming"
+    else {
+        if (transaction.outputs[0].public_keys.indexOf(publicKey) > -1) {
+            return "incoming"
+        }
+        if (transaction.inputs[0].owners_before.indexOf(publicKey) > -1) {
+            return "outgoing"
+        }
     }
 }
 
