@@ -5,6 +5,7 @@
 [![npm](https://img.shields.io/npm/v/ilp-plugin-bigchaindb.svg)](https://www.npmjs.com/package/ilp-plugin-bigchaindb)
 [![js bigchaindb](https://img.shields.io/badge/js-bigchaindb-39BA91.svg)](https://github.com/ascribe/javascript)
 [![Build Status](https://travis-ci.org/bigchaindb/ilp-plugin-bigchaindb.svg?branch=master)](https://travis-ci.org/bigchaindb/ilp-plugin-bigchaindb)
+[![Greenkeeper badge](https://badges.greenkeeper.io/bigchaindb/ilp-plugin-bigchaindb.svg)](https://greenkeeper.io/)
 
 ## Installation
 
