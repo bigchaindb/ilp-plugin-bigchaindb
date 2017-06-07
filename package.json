@@ -86,5 +86,8 @@
     "rimraf": "^2.5.4",
     "webpack": "^2.2.1",
     "webpack-combine-loaders": "^2.0.0"
+  },
+  "engines" : { 
+    "node" : ">=6.0.0 <8.0.0"
   }
 }
