@@ -1,10 +1,19 @@
 language: node_js
-node_js: node
+node_js: 7
+
+env:
+  - CXX=g++-4.9
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.9
 
 install: npm install
 
 script:
-  - npm run clean
   - npm run build
 
 cache:

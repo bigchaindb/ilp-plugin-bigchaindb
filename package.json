@@ -36,7 +36,6 @@
     "build:cjs": "rimraf ./cjs && cross-env BABEL_ENV=cjs babel ./src -d cjs",
     "build:es6": "rimraf ./es6 && cross-env babel ./src -d es6",
     "clean": "rimraf ./build ./bundle ./cjs ./es6",
-    "prepublish": "npm run build",
     "test": "node --harmony-async-await test/plugin-test.js",
     "release": "./node_modules/release-it/bin/release.js --src.tagName='v%s' --github.release --npm.publish --non-interactive",
     "release-minor": "./node_modules/release-it/bin/release.js minor --src.tagName='v%s' --github.release --npm.publish --non-interactive",
@@ -86,5 +85,8 @@
     "rimraf": "^2.5.4",
     "webpack": "^2.2.1",
     "webpack-combine-loaders": "^2.0.0"
+  },
+  "engines" : { 
+    "node" : ">=6.0.0 <8.0.0"
   }
 }

@@ -1,5 +1,6 @@
 /* eslint-disable strict, no-console, object-shorthand */
 /* eslint-disable import/no-extraneous-dependencies, import/newline-after-import */
+
 'use strict';
 
 const path = require('path');
@@ -30,7 +31,7 @@ const DEFINITIONS = {
 /** PLUGINS **/
 const PLUGINS = [
     new webpack.DefinePlugin(DEFINITIONS),
-    new webpack.NoErrorsPlugin(),
+    new webpack.NoEmitOnErrorsPlugin(),
 ];
 
 const PROD_PLUGINS = [
