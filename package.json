@@ -60,6 +60,7 @@
     "moment": "^2.14.1",
     "reconnect-core": "^1.2.0",
     "simple-websocket": "^5.0.2",
+    "uuid": "^3.0.1",
     "whatwg-fetch": "^2.0.3",
     "ws": "^3.0.0"
   },

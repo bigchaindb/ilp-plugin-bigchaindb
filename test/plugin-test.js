@@ -1,17 +1,17 @@
-const BigchainDBLedgerPlugin = require('../cjs/lib/bigchaindb_ledger_plugin');
-const driver = require('js-bigchaindb-driver/dist/node');
-const moment = require('moment');
-const uuid = require('uuid/v4');
-const crypto = require('crypto');
-const assert = require('assert');
+const crypto = require('crypto')
+const moment = require('moment')
+const uuid = require('uuid/v4')
 
-const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://localhost:9984';
-const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://localhost:9985';
+const driver = require('js-bigchaindb-driver/dist/node')
+const BigchainDBLedgerPlugin = require('../cjs/lib/bigchaindb_ledger_plugin')
+
+const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://localhost:9984'
+const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://localhost:9985'
 // const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://35.157.131.84:9984';
 // const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://35.157.131.84:9985';
 
-const BDB_SERVER_API = `${BDB_SERVER_URL}/api/v1/`;
-const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_tx`;
+const BDB_SERVER_API = `${BDB_SERVER_URL}/api/v1/`
+const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_tx`
 
 console.log(BDB_SERVER_API, BDB_WS_API)
 
@@ -26,63 +26,62 @@ const condition = hash(fulfillment).toString('base64')
 console.log('condition: ', condition, 'fulfillment:', fulfillment)
 
 
-async function runTest(){
-
-    let sender = new BigchainDBLedgerPlugin({
+async function runTest() {
+    const sender = new BigchainDBLedgerPlugin({
         server: BDB_SERVER_API,
         ws: BDB_WS_API,
         keyPair: {
-            privateKey: "6HgCvsvF7o1zFDPyXZsmU6ZZ7eiiY8i2ccB6z21sfNC8",
-            publicKey: "79K8SPZbeSDYXBrWgt3dsNmYTZbKNtdYQ5XrjA9XEWfG"
+            privateKey: '6HgCvsvF7o1zFDPyXZsmU6ZZ7eiiY8i2ccB6z21sfNC8',
+            publicKey: '79K8SPZbeSDYXBrWgt3dsNmYTZbKNtdYQ5XrjA9XEWfG'
         }
-    });
+    })
 
-    let receiver = new BigchainDBLedgerPlugin({
+    const receiver = new BigchainDBLedgerPlugin({
         server: BDB_SERVER_API,
         ws: BDB_WS_API,
         keyPair: {
-            privateKey: "4HhPSKV9QGGJr2U6Mq5DoZRoqrCU38RfGK6gDtXKAn1L",
-            publicKey: "AkZUXyGrEygFF6R8vQveE2Wswkn4rSudEBuUSaV7Wiin"
+            privateKey: '4HhPSKV9QGGJr2U6Mq5DoZRoqrCU38RfGK6gDtXKAn1L',
+            publicKey: 'AkZUXyGrEygFF6R8vQveE2Wswkn4rSudEBuUSaV7Wiin'
         }
-    });
+    })
 
     const txInitialCoins = driver.Transaction.makeCreateTransaction(
         null,
-        {type: 'ilp:coin', timestamp: moment().format('X')},
+        { type: 'ilp:coin', timestamp: moment().format('X') },
         [
             driver.Transaction.makeOutput(
                 driver.Transaction.makeEd25519Condition(sender._keyPair.publicKey),
                 '1000')],
         sender._keyPair.publicKey
-    );
+    )
 
     // sign, post and poll status
     const txInitialCoinsSigned =
-        driver.Transaction.signTransaction(txInitialCoins, sender._keyPair.privateKey);
+        driver.Transaction.signTransaction(txInitialCoins, sender._keyPair.privateKey)
 
     await driver.Connection
         .postTransaction(txInitialCoinsSigned, BDB_SERVER_API)
         .then((res) => {
-            console.log('Response from BDB server', res);
+            console.log('Response from BDB server', res)
             return driver.Connection
                 .pollStatusAndFetchTransaction(txInitialCoinsSigned.id, BDB_SERVER_API)
-        });
+        })
 
 
-    console.log("sender connected? ", sender.isConnected())
-    console.log("receiver connected? ", receiver.isConnected())
+    console.log('sender connected? ', sender.isConnected())
+    console.log('receiver connected? ', receiver.isConnected())
 
     await sender.connect()
-    console.log("sender connected? ", sender.isConnected())
-    console.log("sender info? ", sender.getInfo())
-    console.log("sender account? ", sender.getAccount())
-    console.log("sender balance? ", await sender.getBalance())
+    console.log('sender connected? ', sender.isConnected())
+    console.log('sender info? ', sender.getInfo())
+    console.log('sender account? ', sender.getAccount())
+    console.log('sender balance? ', await sender.getBalance())
 
     await receiver.connect()
-    console.log("receiver connected? ", receiver.isConnected())
-    console.log("receiver info? ", receiver.getInfo())
-    console.log("receiver account? ", receiver.getAccount())
-    console.log("receiver balance? ", await receiver.getBalance())
+    console.log('receiver connected? ', receiver.isConnected())
+    console.log('receiver info? ', receiver.getInfo())
+    console.log('receiver account? ', receiver.getAccount())
+    console.log('receiver balance? ', await receiver.getBalance())
 
     const transfer = {
         id: uuid(),
@@ -102,9 +101,12 @@ async function runTest(){
     }
 
     const receiverFulfilledPromise = new Promise((resolve, reject) => {
-        receiver.once('incoming_prepare', async function (transfer) {
+        receiver.once('incoming_prepare', async (transfer) => {
             console.log('receiver got incoming prepare notification', transfer)
-            console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+            console.log(
+                `sender balance is: ${await sender.getBalance()}, 
+                 receiver balance is: ${await receiver.getBalance()}`
+            )
 
             console.log('receiver fulfilling first transfer')
             try {
@@ -114,7 +116,10 @@ async function runTest(){
                 reject(err)
             }
 
-            console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+            console.log(
+                `sender balance is: ${await sender.getBalance()},
+                 receiver balance is: ${await receiver.getBalance()}`
+            )
             resolve()
         })
     })
@@ -129,13 +134,19 @@ async function runTest(){
     } catch (e) {
         console.log('avoided submitting duplicate transfer')
     }
-    console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+    console.log(
+        `sender balance is: ${await sender.getBalance()},
+         receiver balance is: ${await receiver.getBalance()}`
+    )
 
     console.log('sending a transfer that will not be fulfilled')
     const otherTransfer = await sender.sendTransfer(Object.assign({}, transfer, {
         id: uuid()
     }))
-    console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+    console.log(
+        `sender balance is: ${await sender.getBalance()},
+         receiver balance is: ${await receiver.getBalance()}`
+    )
     const timedOutPromise = new Promise((resolve) => {
         sender.once('outgoing_reject', (transfer, rejectionMessage) => {
             console.log('sender got outgoing_reject notification with message:', rejectionMessage)
@@ -143,7 +154,10 @@ async function runTest(){
         })
     })
     await timedOutPromise
-    console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+    console.log(
+        `sender balance is: ${await sender.getBalance()},
+         receiver balance is: ${await receiver.getBalance()}`
+    )
 
     console.log('sending a transfer the receiver will reject')
     const transferToReject = await sender.sendTransfer(Object.assign({}, transfer, {
@@ -169,7 +183,10 @@ async function runTest(){
         })
     })
     await rejectedPromise
-    console.log(`sender balance is: ${await sender.getBalance()}, receiver balance is: ${await receiver.getBalance()}`)
+    console.log(
+        `sender balance is: ${await sender.getBalance()},
+         receiver balance is: ${await receiver.getBalance()}`
+    )
 
     console.log('plugins can also send messages to one another')
     const messagePromise = new Promise((resolve) => {
@@ -190,7 +207,6 @@ async function runTest(){
     await receiver.disconnect()
     console.log('disconnected plugins')
     process.exit()
-
 }
 
 runTest().catch(err => console.log(err))
