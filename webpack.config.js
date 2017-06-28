@@ -1,14 +1,14 @@
 /* eslint-disable strict, no-console, object-shorthand */
 /* eslint-disable import/no-extraneous-dependencies, import/newline-after-import */
 
-'use strict';
+'use strict'
 
-const path = require('path');
+const path = require('path')
 
-const webpack = require('webpack');
-const combineLoaders = require('webpack-combine-loaders');
+const webpack = require('webpack')
+const combineLoaders = require('webpack-combine-loaders')
 
-const PRODUCTION = process.env.NODE_ENV === 'production';
+const PRODUCTION = process.env.NODE_ENV === 'production'
 
 const PATHS = {
     ILP_PLUGIN: path.resolve(__dirname, 'src/lib/bigchaindb_ledger_plugin.js'),
@@ -16,7 +16,7 @@ const PATHS = {
     BUILD: path.resolve(__dirname, 'build'),
     BUNDLE: path.resolve(__dirname, 'bundle'),
     NODE_MODULES: path.resolve(__dirname, 'node_modules'),
-};
+}
 
 /** EXTERNAL DEFINITIONS INJECTED INTO APP **/
 const DEFINITIONS = {
@@ -25,14 +25,14 @@ const DEFINITIONS = {
         BDB_SERVER_URL: JSON.stringify(`${process.env.BDB_SERVER_URL || 'http://localhost:9984'}`),
         BDB_WS_URL: JSON.stringify(`${process.env.BDB_WS_URL || 'ws://localhost:9985'}`),
     },
-};
+}
 
 
 /** PLUGINS **/
 const PLUGINS = [
     new webpack.DefinePlugin(DEFINITIONS),
     new webpack.NoEmitOnErrorsPlugin(),
-];
+]
 
 const PROD_PLUGINS = [
     new webpack.optimize.UglifyJsPlugin({
@@ -48,11 +48,11 @@ const PROD_PLUGINS = [
         debug: false,
         minimize: true
     }),
-];
+]
 
 
 if (PRODUCTION) {
-    PLUGINS.push(...PROD_PLUGINS);
+    PLUGINS.push(...PROD_PLUGINS)
 }
 
 
@@ -67,7 +67,7 @@ const JS_LOADER = combineLoaders([
             cacheDirectory: true,
         },
     },
-]);
+])
 
 
 const LOADERS = [
@@ -76,7 +76,7 @@ const LOADERS = [
         exclude: [PATHS.NODE_MODULES],
         loader: JS_LOADER,
     },
-];
+]
 
 
 /** EXPORTED WEBPACK CONFIG **/
@@ -102,4 +102,4 @@ module.exports = {
     module: {
         rules: LOADERS,
     },
-};
+}
