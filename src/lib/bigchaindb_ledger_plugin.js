@@ -5,7 +5,7 @@ import assert from 'assert';
 import base58 from 'bs58';
 const uuid = require('uuid/v4');
 
-import * as driver from 'js-bigchaindb-driver/dist/node';
+import * as driver from 'bigchaindb-driver';
 
 import SimpleWebsocket from 'simple-websocket';
 
