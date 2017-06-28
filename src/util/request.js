@@ -1,4 +1,4 @@
-import { default as baseRequest } from 'js-utility-belt/lib/request'
+import { default as baseRequest } from 'js-utility-belt/lib/request' // eslint-disable-line import/no-named-default
 import sanitize from 'js-utility-belt/lib/sanitize'
 
 const DEFAULT_REQUEST_CONFIG = {

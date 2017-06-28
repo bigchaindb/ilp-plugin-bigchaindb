@@ -1,24 +1,23 @@
-import crypto from 'crypto'
+// import crypto from 'crypto'
 import assert from 'assert'
 import reconnectCore from 'reconnect-core'
 import EventEmitter2 from 'eventemitter2'
 import base58 from 'bs58'
 import uuid from 'uuid/v4'
 
-import * as driver from 'bigchaindb-driver'
+import * as driver from 'bigchaindb-driver' // eslint-disable-line import/no-namespace
 import SimpleWebsocket from 'simple-websocket'
 
 class BigchainDBLedgerPlugin extends EventEmitter2 {
-
     constructor(opts) {
         super()
 
         this._server = opts.server
         this._ws = opts.ws
         this._keyPair = opts.keyPair
+        this._conn = null
         this._connected = false
         this._prefix = 'g.crypto.bigchaindb.'
-
         this._transfers = {}
         this._notesToSelf = {}
         this._fulfillments = {}
@@ -37,6 +36,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
     }
 
     async connect() {
+        this._conn = new driver.Connection(this._server)
         await this._connect()
     }
 
@@ -110,37 +110,42 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         const unspentTransactions = await this._getUnspentTransactions()
         return unspentTransactions
             .map((transaction) => transaction.outputs
-                    .map((output) => parseInt(output.amount, 10))
-                    .reduce((prevVal, elem) => prevVal + elem, 0))
+                .map((output) => parseInt(output.amount, 10))
+                .reduce((prevVal, elem) => prevVal + elem, 0))
             .reduce((prevVal, elem) => prevVal + elem, 0)
     }
 
     async _getUnspentTransactions() {
         const outputs = await this._getUnspentOutputs()
         const unspentTransactions = await Promise.all(
-            outputs.map(async (output) => await this._getTransactionForOutput(output))
+            outputs.map(async (output) =>
+                await this._getTransactionForOutput(output) // eslint-disable-line no-return-await
+            )
         )
 
         return unspentTransactions
-            .filter(transaction => !!transaction.metadata &&
-                    !!transaction.metadata.type &&
-                    (transaction.metadata.type === 'ilp:coin' ||
-                    transaction.metadata.type === 'ilp:fulfill') &&
-                    transaction.outputs[0].public_keys.length === 1)
+            .filter(transaction =>
+                !!transaction.metadata &&
+                !!transaction.metadata.type &&
+                (
+                    transaction.metadata.type === 'ilp:coin' ||
+                    transaction.metadata.type === 'ilp:fulfill' ||
+                    transaction.metadata.type.hasOwnProperty('ilp:coin') ||
+                    transaction.metadata.type.hasOwnProperty('ilp:fulfill')
+                ) &&
+                transaction.outputs[0].public_keys.length === 1)
     }
 
     async _getUnspentOutputs() {
         const { publicKey } = this._keyPair
 
-        return await driver.Connection.listOutputs(
-            { public_key: publicKey, unspent: true },
-            this._server)
+        return await this._conn.listOutputs(publicKey, false) // eslint-disable-line no-return-await
             .then(res => res)
     }
 
     async _getTransactionForOutput(output) {
-        const txId = output.split('/')[2]
-        return await driver.Connection.getTransaction(txId, this._server)
+        const txId = output.transaction_id
+        return await this._conn.getTransaction(txId) // eslint-disable-line no-return-await
             .then((tx) => tx)
     }
 
@@ -176,9 +181,16 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             this._keyPair.publicKey
         )
 
-        const outputChange = driver.Transaction.makeOutput(
-            conditionChange, (parseInt(inputAmount, 10) - amount).toString()
-        )
+        const outputs = [output]
+
+        const changeAmount = parseInt(inputAmount, 10) - amount
+        if (changeAmount > 0) {
+            outputs.push(
+                driver.Transaction.makeOutput(
+                    conditionChange, changeAmount.toString()
+                )
+            )
+        }
 
         const metadata = {
             type: {
@@ -196,22 +208,22 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         const tx = driver.Transaction.makeTransferTransaction(
             inputTransaction,
             metadata,
-            [output, outputChange],
+            outputs,
             0
         )
 
         const txSigned =
             driver.Transaction.signTransaction(tx, this._keyPair.privateKey)
 
-        console.log(`signing and submitting transaction: ${txSigned}`)
+        console.log('signing and submitting transaction', txSigned)
         console.log('transaction id of', transfer.id, 'is', txSigned.id)
 
-        await driver.Connection
-            .postTransaction(txSigned, this._server)
+        await this._conn
+            .postTransaction(txSigned)
             .then((res) => {
                 console.log('Response from BDB server', res)
-                return driver.Connection
-                    .pollStatusAndFetchTransaction(txSigned.id, this._server)
+                return this._conn
+                    .pollStatusAndFetchTransaction(txSigned.id)
             })
         console.log('completed transaction')
         console.log('setting up expiry')
@@ -227,11 +239,11 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             throw new Error(`no transfer with id ${transferId}`)
         }
 
-        const condition = crypto
-            .createHash('sha256')
-            .update(Buffer.from(fulfillment, 'base64'))
-            .digest()
-            .toString('base64')
+        // const condition = crypto
+        //     .createHash('sha256')
+        //     .update(Buffer.from(fulfillment, 'base64'))
+        //     .digest()
+        //     .toString('base64')
 
         const { publicKey, privateKey } = this._keyPair
 
@@ -276,12 +288,12 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
         console.log(`signing and submitting transaction: ${tx}`)
 
-        await driver.Connection
-            .postTransaction(tx, this._server)
+        await this._conn
+            .postTransaction(tx)
             .then((res) => {
                 console.log('Response from BDB server', res)
-                return driver.Connection
-                    .pollStatusAndFetchTransaction(tx.id, this._server)
+                return this._conn
+                    .pollStatusAndFetchTransaction(tx.id)
             })
 
         console.log('completed fulfill transaction')
@@ -298,41 +310,41 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
             delay)
     }
 
-    async _expireTransfer(transferId) {
-        if (this._transfers[transferId].Done) return
-        debug('preparing to cancel transfer at', new Date().toISOString())
-
-        // make sure that the promise rejection is handled no matter
-        // which step it happens during.
-        try {
-            const cached = this._transfers[transferId]
-            const tx = await this._api.prepareEscrowCancellation(this._address, {
-                owner: cached.Account,
-                escrowSequence: cached.Sequence
-            })
-
-            const signed = this._api.sign(tx.txJSON, this._secret)
-            debug(`signing and submitting transaction: ${tx.txJSON}`)
-            debug('cancel tx id of', transferId, 'is', signed.id)
-
-            await Submitter.submit(this._api, signed)
-            debug('completed cancel transaction')
-        } catch (e) {
-            debug('CANCELLATION FAILURE! error was:', e.message)
-
-            // just retry if it was a ledger thing
-            // TODO: is there any other scenario to retry under?
-            if (e.name !== 'NotAcceptedError') return
-
-            debug(`CANCELLATION FAILURE! (${transferId}) retrying...`)
-            await this._expireTransfer(transferId)
-        }
-    }
+    // async _expireTransfer(transferId) {
+    //     if (this._transfers[transferId].Done) return
+    //     debug('preparing to cancel transfer at', new Date().toISOString())
+    //
+    //     // make sure that the promise rejection is handled no matter
+    //     // which step it happens during.
+    //     try {
+    //         const cached = this._transfers[transferId]
+    //         const tx = await this._api.prepareEscrowCancellation(this._address, {
+    //             owner: cached.Account,
+    //             escrowSequence: cached.Sequence
+    //         })
+    //
+    //         const signed = this._api.sign(tx.txJSON, this._secret)
+    //         debug(`signing and submitting transaction: ${tx.txJSON}`)
+    //         debug('cancel tx id of', transferId, 'is', signed.id)
+    //
+    //         await Submitter.submit(this._api, signed)
+    //         debug('completed cancel transaction')
+    //     } catch (e) {
+    //         debug('CANCELLATION FAILURE! error was:', e.message)
+    //
+    //         // just retry if it was a ledger thing
+    //         // TODO: is there any other scenario to retry under?
+    //         if (e.name !== 'NotAcceptedError') return
+    //
+    //         debug(`CANCELLATION FAILURE! (${transferId}) retrying...`)
+    //         await this._expireTransfer(transferId)
+    //     }
+    // }
 
     async _handleTransaction(changes) {
         // yield this.emitAsync('incoming', changes);
         // const {publicKey} = this._keyPair;
-        const transaction = await driver.Connection.getTransaction(changes.tx_id, this._server)
+        const transaction = await this._conn.getTransaction(changes.transaction_id)
         const direction = getDirection(this, transaction)
 
         if (transaction) {
@@ -396,6 +408,7 @@ function getDirection(plugin, transaction) {
             return 'outgoing'
         }
     }
+    return null
 }
 
 function getSource(plugin, transaction) {
@@ -422,6 +435,7 @@ function _selectPublicKey(keyList, keyBlackList) {
         assert(selectedKeys.length > 0)
         return selectedKeys[0]
     }
+    return null
 }
 
 function getAmount(plugin, transaction) {

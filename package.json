@@ -30,7 +30,7 @@
     "lib": "cjs/"
   },
   "scripts": {
-    "lint": "eslint ./",
+    "lint": "eslint ./src",
     "build": "npm run build:bundle && npm run build:cjs && npm run build:es6",
     "build:bundle": "rimraf ./bundle && cross-env NODE_ENV=production BABEL_ENV=bundle webpack",
     "build:cjs": "rimraf ./cjs && cross-env BABEL_ENV=cjs babel ./src -d cjs",

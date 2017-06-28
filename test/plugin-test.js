@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const moment = require('moment')
 const uuid = require('uuid/v4')
 
-const driver = require('js-bigchaindb-driver/dist/node')
+const driver = require('bigchaindb-driver/dist/node')
 const BigchainDBLedgerPlugin = require('../cjs/lib/bigchaindb_ledger_plugin')
 
 const BDB_SERVER_URL = process.env.BDB_SERVER_URL || 'http://localhost:9984'
@@ -11,9 +11,11 @@ const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://localhost:9985'
 // const BDB_WS_URL = process.env.BDB_WS_URL || 'ws://35.157.131.84:9985';
 
 const BDB_SERVER_API = `${BDB_SERVER_URL}/api/v1/`
-const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_tx`
+const BDB_WS_API = `${BDB_WS_URL}/api/v1/streams/valid_transactions`
 
 console.log(BDB_SERVER_API, BDB_WS_API)
+
+const conn = new driver.Connection(BDB_SERVER_API)
 
 function hash(fulfillment) {
     const h = crypto.createHash('sha256')
@@ -51,7 +53,7 @@ async function runTest() {
         [
             driver.Transaction.makeOutput(
                 driver.Transaction.makeEd25519Condition(sender._keyPair.publicKey),
-                '1000')],
+                '1')],
         sender._keyPair.publicKey
     )
 
@@ -59,12 +61,11 @@ async function runTest() {
     const txInitialCoinsSigned =
         driver.Transaction.signTransaction(txInitialCoins, sender._keyPair.privateKey)
 
-    await driver.Connection
-        .postTransaction(txInitialCoinsSigned, BDB_SERVER_API)
+    await conn
+        .postTransaction(txInitialCoinsSigned)
         .then((res) => {
             console.log('Response from BDB server', res)
-            return driver.Connection
-                .pollStatusAndFetchTransaction(txInitialCoinsSigned.id, BDB_SERVER_API)
+            return conn.pollStatusAndFetchTransaction(txInitialCoinsSigned.id)
         })
 
 
@@ -88,7 +89,7 @@ async function runTest() {
         from: sender.getAccount(),
         to: receiver.getAccount(),
         ledger: sender.getInfo().prefix,
-        amount: 10,
+        amount: 1,
         ilp: 'blah',
         noteToSelf: {
             'just': 'some stuff'
