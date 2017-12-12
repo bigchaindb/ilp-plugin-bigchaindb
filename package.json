@@ -52,7 +52,7 @@
     "crypto": "0.0.3",
     "debug": "^3.0.0",
     "es6-promise": "^4.1.0",
-    "eventemitter2": "^4.1.0",
+    "eventemitter2": "^5.0.0",
     "five-bells-shared": "^26.0.0",
     "bigchaindb-driver": "^0.2.0",
     "js-utility-belt": "^1.5.0",
