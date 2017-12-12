@@ -117,11 +117,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
     async _getUnspentTransactions() {
         const outputs = await this._getUnspentOutputs()
-        const unspentTransactions = await Promise.all(
-            outputs.map(async (output) =>
-                await this._getTransactionForOutput(output) // eslint-disable-line no-return-await
-            )
-        )
+        const unspentTransactions = await Promise.all(outputs.map(async (output) =>
+            await this._getTransactionForOutput(output))) // eslint-disable-line no-return-await
 
         return unspentTransactions
             .filter(transaction =>
@@ -151,12 +148,14 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
     async sendTransfer(transfer) {
         const [, localAddress] = transfer.to.match(/^g\.crypto\.bigchaindb\.(.+)/)
-        const amount = transfer.amount
+        const amount = transfer.amount // eslint-disable-line prefer-destructuring
         // TODO: is there a better way to do note to self?
         this._notesToSelf[transfer.id] = JSON.parse(JSON.stringify(transfer.noteToSelf))
 
-        console.log('sending', amount.toString(), 'to', localAddress,
-            'condition', transfer.executionCondition)
+        console.log(
+            'sending', amount.toString(), 'to', localAddress,
+            'condition', transfer.executionCondition
+        )
 
         const unspentTransactions = await this._getUnspentTransactions()
 
@@ -164,32 +163,24 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
         const inputTransaction = unspentTransactions[0]
         const inputAmount = inputTransaction.outputs[0].amount
 
-        const subconditionExecute = driver.Transaction.makeEd25519Condition(
-            this._keyPair.publicKey, false
-        )
-        const subconditionAbort = driver.Transaction.makeEd25519Condition(
-            localAddress, false
-        )
+        const subconditionExecute = driver.Transaction.makeEd25519Condition(this._keyPair.publicKey, false) // eslint-disable-line max-len
+        const subconditionAbort = driver.Transaction.makeEd25519Condition(localAddress, false)
 
-        const condition = driver.Transaction.makeThresholdCondition(1,
-            [subconditionExecute, subconditionAbort])
+        const condition = driver.Transaction.makeThresholdCondition(
+            1,
+            [subconditionExecute, subconditionAbort]
+        )
 
         const output = driver.Transaction.makeOutput(condition, amount.toString())
         output.public_keys = [this._keyPair.publicKey, localAddress]
 
-        const conditionChange = driver.Transaction.makeEd25519Condition(
-            this._keyPair.publicKey
-        )
+        const conditionChange = driver.Transaction.makeEd25519Condition(this._keyPair.publicKey)
 
         const outputs = [output]
 
         const changeAmount = parseInt(inputAmount, 10) - amount
         if (changeAmount > 0) {
-            outputs.push(
-                driver.Transaction.makeOutput(
-                    conditionChange, changeAmount.toString()
-                )
-            )
+            outputs.push(driver.Transaction.makeOutput(conditionChange, changeAmount.toString()))
         }
 
         const metadata = {
@@ -249,9 +240,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
         const outputCondition = driver.Transaction.makeEd25519Condition(publicKey)
 
-        const output = driver.Transaction.makeOutput(
-            outputCondition, cached.outputs[0].amount
-        )
+        const output = driver.Transaction.makeOutput(outputCondition, cached.outputs[0].amount)
 
         const metadata = {
             type: {
@@ -277,8 +266,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
         const executeFulfillment = driver.Transaction.makeEd25519Condition(publicKey, false)
         executeFulfillment.sign(
-            new Buffer(driver.Transaction.serializeTransactionIntoCanonicalString(tx)),
-            new Buffer(base58.decode(privateKey))
+            Buffer.from(driver.Transaction.serializeTransactionIntoCanonicalString(tx)),
+            Buffer.from(base58.decode(privateKey))
         )
         txFulfillment.addSubfulfillment(executeFulfillment)
 
@@ -307,7 +296,8 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
 
         setTimeout(
             that._expireTransfer.bind(that, transferId),
-            delay)
+            delay
+        )
     }
 
     // async _expireTransfer(transferId) {
@@ -355,7 +345,7 @@ class BigchainDBLedgerPlugin extends EventEmitter2 {
                 console.log('handle', transaction.id, `${direction}_prepare`, this._keyPair.publicKey)
                 this.emitAsync(`${direction}_prepare`, transfer, transaction)
             } else if (transaction.metadata.type.hasOwnProperty('ilp:fulfill')) {
-                const fulfillment = transaction.metadata.type['ilp:fulfill'].fulfillment
+                const fulfillment = transaction.metadata.type['ilp:fulfill'].fulfillment // eslint-disable-line prefer-destructuring
                 console.log('handle', transaction.id, `${direction}_fulfill`, this._keyPair.publicKey)
                 this.emitAsync(`${direction}_fulfill`, transfer, fulfillment)
             } else if (transaction.metadata.type.hasOwnProperty('ilp:cancel')) {
