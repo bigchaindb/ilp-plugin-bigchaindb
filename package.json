@@ -59,7 +59,7 @@
     "lodash": "^4.17.4",
     "moment": "^2.18.1",
     "reconnect-core": "^1.2.0",
-    "simple-websocket": "^6.0.0",
+    "simple-websocket": "^7.0.0",
     "uuid": "^3.0.1",
     "whatwg-fetch": "^2.0.3",
     "ws": "^4.0.0"
