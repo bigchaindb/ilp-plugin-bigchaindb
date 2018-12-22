@@ -50,7 +50,7 @@
     "co-request": "^1.0.0",
     "core-js": "^2.4.1",
     "crypto": "0.0.3",
-    "debug": "^3.0.0",
+    "debug": "^4.1.1",
     "es6-promise": "^4.1.0",
     "eventemitter2": "^5.0.0",
     "five-bells-shared": "^26.0.0",
